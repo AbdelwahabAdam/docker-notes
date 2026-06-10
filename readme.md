@@ -1,6 +1,90 @@
 # Docker
+- Open Source Standalone application
+
 
 ### Docker basics
+
+#### Container:
+- container is ..
+
+
+#### Image:
+- Image is ....
+
+
+#### Virtualization:
+- Virtualization is ...
+- how Virtualization works?
+- ...
+
+#### hypervisors:
+- hypervisors is ..
+
+
+#### Virtualization VS Containerization
+- 
+
+- no operation system!
+
+#### Docker Architecture
+
+-image
+-container
+- registry
+- client
+- docker demon
+- Namespace
+
+-----
+#### Basic commands
+
+# TODO: seperate images command than continers commands
+# TODO: add options under each commands ex -d -a
+- docker run hello-world 
+
+- docker ps -a
+
+- docker rm <id_or_name>
+
+- docker images
+
+- docker image rm <id_or_name>
+
+
+- docker run -d radis  
+
+- docker inspect redis
+
+- docker logs <id_or_name>
+
+- docker info 
+
+- docker inspect --format='{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' container-id
+
+
+
+- $ docker container run --detach --publish 80:80 --name n1 nginx
+- docker stop test_nginx_container
+- docker start test_nginx_container
+
+-  docker exec   -it  test_nginx_container bash
+-----
+
+### Docker conecpts
+
+#### Docker Tags:
+- docker tag
+- docker tag redis mohamedelbitawy/redis
+
+#### Image Layers:
+#### Dockerfile:
+#### Docker Compose:
+
+
+
+-----
+#### Important Notes:
+
 - .dockerignore
 - docker containers are isolated 
 
@@ -118,3 +202,13 @@ FROM base as development
 FROM base as production
 ```
 
+
+
+
+-----
+## Extra Notes:
+
+
+### What is nginx
+
+### what is redis

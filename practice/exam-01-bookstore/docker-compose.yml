@@ -1,0 +1,27 @@
+version: "3"
+
+services:
+  web:
+    image: nginx:1.25-alpine
+    ports:
+      - 9083:80
+    networks:
+      bookstore-compose-net:
+
+
+  db:
+    image: postgres:15-alpine
+    environment:
+        POSTGRES_PASSWORD: bookstore123
+        POSTGRES_USER: bookstore
+        POSTGRES_DB: books
+    volumes:
+      - bookstore-pg:/var/lib/postgresql/data
+    networks:
+      bookstore-compose-net:
+
+volumes:
+  bookstore-pg:
+
+networks:
+  bookstore-compose-net:
