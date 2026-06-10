@@ -1,0 +1,21 @@
+version: "3"
+services:
+  node-app:
+    container_name: express-node-app-container
+    build: .
+    volumes:
+      - ./src:/app/src:ro
+      # - ./:/app:rw
+
+    # environment:
+    #   - PORT=4400
+    #   - NODE_ENV=development
+    #   - HOPA=DEVOPS
+    env_file:
+      - ./.env
+
+
+
+    ports:
+      - "4400:4000"
+
