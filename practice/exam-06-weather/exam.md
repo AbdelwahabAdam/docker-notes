@@ -1,8 +1,23 @@
-# Exam 6 Answers — Weather Dashboard
+# Docker Practice Exam 6 — Weather Dashboard
+
+**Level:** Mid-Level DevOps Engineer  
+**Duration:** 60–90 Minutes  
 
 ---
 
-## Task 1
+**Format:** Try each task first — the **Answer** is directly below it.
+
+## Task 1 — Container Deployment
+
+| Setting | Value |
+|---------|-------|
+| Image | **`redis:7.2-alpine`** |
+| Container | **`weather-cache`** |
+| Ports | **`9580:6379`** |
+| Restart | **`unless-stopped`** |
+
+
+### Answer
 
 ```bash
 docker run -d --name weather-cache -p 9580:6379 --restart unless-stopped redis:alpine
@@ -11,7 +26,18 @@ docker ps
 
 ---
 
-## Task 2
+## Task 2 — Image Creation (FE widget)
+
+### Provided
+
+- `widget.html`
+
+### Required
+
+**`Dockerfile.landing`**, **`nginx:1.25-alpine`**, build **`weather-widget:v1`**, port **`9581:80`**
+
+
+### Answer
 
 ```dockerfile
 FROM nginx
@@ -28,7 +54,12 @@ docker run -d --name weather-widget -p 9581:80 weather-widget:v1
 
 ---
 
-## Task 3
+## Task 3 — Persistent Storage
+
+Volume **`weather-history`**, containers **`weather-hist1`** / **`weather-hist2`**, file **`/readings/2024-01-01.txt`**: `sunny,22C,humidity=45`
+
+
+### Answer
 
 ```bash
 docker volume create weather-history
@@ -41,7 +72,16 @@ cat /readings/2024-01-01.txt
 
 ---
 
-## Task 4
+## Task 4 — Host Bind Mount (FE templates)
+
+### Provided
+
+- `forecast-index.html`
+
+Bind **`./`** → nginx web root, **`weather-live`**, **`9582:80`**, **`nginx:1.25-alpine`**
+
+
+### Answer
 
 ```bash
 mkdir -p /app/weather/templates
@@ -53,7 +93,16 @@ echo "Updated Forecast" > /app/weather/templates/index.html
 
 ---
 
-## Task 5
+## Task 5 — Networking
+
+Network **`weather-net`**:
+
+- **`redis:7.2-alpine`** → **`weather-redis`**
+- **`ubuntu:22.04`** → **`weather-db`**, **`weather-aggregator`**
+- Aggregator pings **`weather-redis`** and **`weather-db`** by name
+
+
+### Answer
 
 ```bash
 docker network create weather-net
@@ -65,7 +114,16 @@ docker exec weather-aggregator bash -c "apt update && apt install -y iputils-pin
 
 ---
 
-## Task 6
+## Task 6 — Environment Variables
+
+### Provided
+
+- `env.example`
+
+**`weather-fetcher`**: `APP_ENV=staging`, `API_KEY=demo-key-123`, `CACHE_HOST=weather-redis`
+
+
+### Answer
 
 ```bash
 docker run -dit --name weather-fetcher \
@@ -78,7 +136,20 @@ docker exec weather-fetcher printenv
 
 ---
 
-## Task 7
+## Task 7 — Docker Compose
+
+**`docker-compose.staging.yml`**:
+
+| Service | Image |
+|---------|-------|
+| `web` | **`nginx:1.25-alpine`** → **`9583:80`** |
+| `cache` | **`redis:7.2-alpine`** |
+| `db` | **`postgres:15-alpine`**, password `weather123`, vol **`weather-pg`** |
+
+Network **`weather-stack-net`**
+
+
+### Answer
 
 ```yaml
 services:
@@ -108,7 +179,12 @@ networks:
 
 ---
 
-## Task 8
+## Task 8 — Troubleshooting
+
+**`weather-collector`** exits → fix **`weather-collector-fixed`** (`ubuntu:22.04`, `-dit`)
+
+
+### Answer
 
 ```bash
 docker logs weather-collector
@@ -120,7 +196,12 @@ docker run -dit --name weather-collector ubuntu
 
 ---
 
-## Task 9
+## Task 9 — Security
+
+User **`weatherapp`**, **`ubuntu:22.04`**, **`weather-secure:v1`**
+
+
+### Answer
 
 ```dockerfile
 FROM ubuntu
@@ -137,7 +218,11 @@ docker exec weather-secure id
 
 ---
 
-## Task 10
+## Task 10 — Production Challenge
+
+****exam root****: **`nginx:1.25-alpine`**, HEALTHCHECK, port **`9584:8080`**, volume **`weather-data:/data`**, network **`weather-prod-net`**
+
+### Answer
 
 ```dockerfile
 FROM nginx
@@ -169,3 +254,5 @@ networks:
 docker compose up -d
 docker ps && docker volume ls && docker network ls
 ```
+
+---

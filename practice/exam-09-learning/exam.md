@@ -1,8 +1,23 @@
-# Exam 9 Answers — Online Learning Platform
+# Docker Practice Exam 9 — Online Learning Platform
+
+**Level:** Mid-Level DevOps Engineer  
+**Duration:** 60–90 Minutes  
 
 ---
 
-## Task 1
+**Format:** Try each task first — the **Answer** is directly below it.
+
+## Task 1 — Container Deployment
+
+| Setting | Value |
+|---------|-------|
+| Image | **`nginx:1.25-alpine`** |
+| Container | **`learn-web`** |
+| Ports | **`9880:80`** |
+| Restart | **`unless-stopped`** |
+
+
+### Answer
 
 ```bash
 docker run -d --name learn-web -p 9880:80 --restart unless-stopped nginx:alpine
@@ -11,7 +26,16 @@ docker ps
 
 ---
 
-## Task 2
+## Task 2 — Image Creation (FE)
+
+### Provided
+
+- `home.html`
+
+**`Dockerfile.landing`**, build **`learn-home:v1`**, port **`9881:80`**
+
+
+### Answer
 
 ```dockerfile
 FROM nginx
@@ -28,7 +52,12 @@ docker run -d --name learn-home -p 9881:80 learn-home:v1
 
 ---
 
-## Task 3
+## Task 3 — Persistent Storage
+
+Volume **`learn-progress`**, file **`/progress/student-42.json`**: `{"lesson":1,"completed":true}`
+
+
+### Answer
 
 ```bash
 docker volume create learn-progress
@@ -41,7 +70,18 @@ cat /progress/student-42.json
 
 ---
 
-## Task 4
+## Task 4 — Host Bind Mount (course materials, read-only)
+
+### Provided
+
+- `lesson.md`
+
+**`learn-courses`** (`ubuntu:22.04`), bind **`./`** → **`/courses:ro`**
+
+Verify read works; write inside container must **fail**.
+
+
+### Answer
 
 ```bash
 mkdir -p /edu/learn/courses
@@ -54,7 +94,12 @@ docker exec learn-courses bash -c "echo test >> /courses/lesson.md"  # should fa
 
 ---
 
-## Task 5
+## Task 5 — Networking
+
+**`learn-net`**: **`mongo:7.0`** (`learn-mongo`, root/pass `learn123`) + **`ubuntu:22.04`** (`learn-api`), resolve **`learn-mongo`**
+
+
+### Answer
 
 ```bash
 docker network create learn-net
@@ -67,7 +112,18 @@ docker exec learn-api getent hosts learn-mongo
 
 ---
 
-## Task 6
+## Task 6 — Environment Variables
+
+### Provided
+
+- `env.learn`
+
+Run **`learn-env`** with **`--env-file env.learn`** plus **`-e PORT=3000`**
+
+Verify `APP_ENV`, `DB_HOST`, `PORT`.
+
+
+### Answer
 
 ```bash
 cat > .env.learn <<EOF
@@ -84,7 +140,28 @@ docker exec learn-env printenv | grep -E 'APP|DB|PORT'
 
 ---
 
-## Task 7
+## Task 7 — Docker Compose (FE + BE + Mongo + Redis)
+
+### Provided (BE placeholder)
+
+- `api-server.js`
+- `api-package.json`
+
+### Required
+
+Create **`docker-compose.staging.yml`** and optionally **`Dockerfile.api`** (*student-created*):
+
+| Service | Image / build | Details |
+|---------|---------------|---------|
+| `web` | **`nginx:1.25-alpine`** | **`9883:80`**, `depends_on: [backend]` |
+| `backend` | Build **`./be`** with base **`node:20-alpine`** OR use `node:20-alpine` + mount + `command: node server.js` | Network only, port 3000 internal |
+| `mongo` | **`mongo:7.0`** | root/`learn123`, vol **`learn-mongo`** |
+| `redis` | **`redis:7.2-alpine`** | |
+
+Network **`learn-stack-net`**
+
+
+### Answer
 
 ```yaml
 services:
@@ -122,7 +199,12 @@ networks:
 
 ---
 
-## Task 8
+## Task 8 — Troubleshooting
+
+**`learn-worker`** → **`learn-worker-fixed`**
+
+
+### Answer
 
 ```bash
 docker logs learn-worker
@@ -134,7 +216,12 @@ docker run -dit --name learn-worker ubuntu
 
 ---
 
-## Task 9
+## Task 9 — Security
+
+User **`learnuser`**, **`ubuntu:22.04`**, **`learn-secure:v1`**
+
+
+### Answer
 
 ```dockerfile
 FROM ubuntu
@@ -151,7 +238,24 @@ docker exec learn-secure id
 
 ---
 
-## Task 10
+## Task 10 — Production Challenge (multi-stage FE)
+
+### Required in **exam root**
+
+**Multi-stage Dockerfile** (*student-created*):
+
+```dockerfile
+FROM node:20-alpine AS base
+# development stage (optional CMD)
+FROM nginx:1.25-alpine AS production
+# non-root learnuser + HEALTHCHECK
+```
+
+**`docker-compose.yml`**: build target **`production`**, **`9884:8080`**, volume **`learn-prod:/data`**, network **`learn-prod-net`**, `APP_ENV=production`
+
+Optional: **`docker-compose.dev.yml`** override with bind mount `./src:/app/src:ro`
+
+### Answer
 
 Multi-stage Dockerfile:
 
@@ -195,3 +299,5 @@ networks:
 docker compose up -d --build
 docker ps && docker volume ls && docker network ls
 ```
+
+---

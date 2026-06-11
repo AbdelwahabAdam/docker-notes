@@ -1,8 +1,23 @@
-# Exam 7 Answers — Chat Messaging App
+# Docker Practice Exam 7 — Chat Messaging App
+
+**Level:** Mid-Level DevOps Engineer  
+**Duration:** 60–90 Minutes  
 
 ---
 
-## Task 1
+**Format:** Try each task first — the **Answer** is directly below it.
+
+## Task 1 — Container Deployment
+
+| Setting | Value |
+|---------|-------|
+| Image | **`nginx:1.25-alpine`** |
+| Container | **`chat-gateway`** |
+| Ports | **`9680:80`** |
+| Restart | **`unless-stopped`** |
+
+
+### Answer
 
 ```bash
 docker run -d --name chat-gateway -p 9680:80 --restart unless-stopped nginx
@@ -11,7 +26,16 @@ docker ps
 
 ---
 
-## Task 2
+## Task 2 — Image Creation (FE login)
+
+### Provided
+
+- `login.html`
+
+**`Dockerfile.landing`**, build **`chat-login:v1`**, port **`9681:80`**
+
+
+### Answer
 
 ```dockerfile
 FROM nginx
@@ -28,7 +52,12 @@ docker run -d --name chat-login -p 9681:80 chat-login:v1
 
 ---
 
-## Task 3
+## Task 3 — Persistent Storage
+
+Volume **`chat-messages`**, **`chat-archive1`** / **`chat-archive2`**, log **`/messages/room-1.log`**: `user1: hello`
+
+
+### Answer
 
 ```bash
 docker volume create chat-messages
@@ -41,7 +70,16 @@ cat /messages/room-1.log
 
 ---
 
-## Task 4
+## Task 4 — Host Bind Mount (FE assets)
+
+### Provided
+
+- `chat-assets-index.html`
+
+**`chat-assets`**, **`nginx:1.25-alpine`**, **`9682:80`**, bind **`./`** → web root
+
+
+### Answer
 
 ```bash
 mkdir -p /srv/chat/assets
@@ -53,7 +91,12 @@ echo "<script>app.js</script>" >> /srv/chat/assets/index.html
 
 ---
 
-## Task 5
+## Task 5 — Networking
+
+**`chat-net`**: **`redis:7.2-alpine`** (`chat-redis`) + **`ubuntu:22.04`** (`chat-api`), DNS resolve **`chat-redis`**
+
+
+### Answer
 
 ```bash
 docker network create chat-net
@@ -64,7 +107,16 @@ docker exec chat-api getent hosts chat-redis
 
 ---
 
-## Task 6
+## Task 6 — Environment Variables
+
+### Provided
+
+- `env.example`
+
+**`chat-server-env`**: `APP_ENV=production`, `REDIS_URL=redis://chat-redis:6379`, `MAX_MESSAGE_LEN=4096`
+
+
+### Answer
 
 ```bash
 docker run -dit --name chat-server-env \
@@ -77,7 +129,20 @@ docker exec chat-server-env printenv
 
 ---
 
-## Task 7
+## Task 7 — Docker Compose (FE + Redis + Mongo)
+
+**`docker-compose.staging.yml`**:
+
+| Service | Image | Config |
+|---------|-------|--------|
+| `web` | **`nginx:1.25-alpine`** | **`9683:80`** |
+| `redis` | **`redis:7.2-alpine`** | |
+| `mongo` | **`mongo:7.0`** | user `chatadmin`, pass `chatpass`, vol **`chat-mongo`** |
+
+Network **`chat-compose-net`**
+
+
+### Answer
 
 ```yaml
 services:
@@ -108,7 +173,12 @@ networks:
 
 ---
 
-## Task 8
+## Task 8 — Troubleshooting
+
+**`chat-bot`** broken → **`chat-bot-fixed`**
+
+
+### Answer
 
 ```bash
 docker logs chat-bot
@@ -119,7 +189,12 @@ docker run -dit --name chat-bot ubuntu
 
 ---
 
-## Task 9
+## Task 9 — Security
+
+User **`chatuser`**, **`ubuntu:22.04`**, **`chat-secure:v1`**
+
+
+### Answer
 
 ```dockerfile
 FROM ubuntu
@@ -136,7 +211,11 @@ docker exec chat-secure id
 
 ---
 
-## Task 10
+## Task 10 — Production Challenge
+
+****exam root****: **`nginx:stable-alpine`**, **`chatuser`**, HEALTHCHECK, **`9684:8080`**, vol **`chat-prod-data:/data`**, network **`chat-prod-net`**
+
+### Answer
 
 ```dockerfile
 FROM nginx:stable-alpine
@@ -163,3 +242,5 @@ volumes:
 networks:
   chat-prod-net:
 ```
+
+---

@@ -3,9 +3,7 @@
 **Level:** Mid-Level DevOps Engineer  
 **Duration:** 60–90 Minutes  
 **Concepts:** All 10 core Docker topics  
-**Workspace:** This folder — [questions.md](./questions.md) · [answers.md](./answers.md)
-
-> Run commands from `exam-01-bookstore/`. Windows bind mounts: `G:/Devops_Hopa/Docker/practice/exam-01-bookstore/taskXX/`  
+**Format:** Try each task first — the **Answer** is directly below it.
 
 ---
 
@@ -31,6 +29,21 @@ docker ps --filter name=bookstore-web
 curl http://localhost:9080
 ```
 
+
+### Answer
+
+```bash
+docker pull nginx:1.25-alpine
+docker run -d \
+  --name bookstore-web \
+  -p 9080:80 \
+  --restart unless-stopped \
+  nginx:1.25-alpine
+
+docker ps --filter name=bookstore-web
+curl http://localhost:9080
+```
+
 ---
 
 ## Task 2 — Image Creation (FE)
@@ -43,14 +56,14 @@ The designer delivered a static landing page. Build and deploy it as a custom im
 
 | File | Purpose |
 |------|---------|
-| `task02-landing/index.html` | Frontend landing page |
+| `landing.html` | Frontend landing page |
 
 ### Required
 
-1. Create **`task02-landing/Dockerfile`** (*student-created*).
+1. Create **`Dockerfile.landing`** (*student-created*).
 2. Base image: **`nginx:1.25-alpine`**.
-3. Copy `index.html` to **`/usr/share/nginx/html/index.html`**.
-4. Build from `task02-landing/` directory:
+3. Copy `landing.html` (or the provided HTML file) to **`/usr/share/nginx/html/index.html`**.
+4. Build from exam root:
    - Image name: **`bookstore-landing`**
    - Tag: **`v1`**
    - Full reference: `bookstore-landing:v1`
@@ -60,6 +73,22 @@ The designer delivered a static landing page. Build and deploy it as a custom im
 
 ```bash
 docker images bookstore-landing
+curl http://localhost:9081
+```
+
+
+### Answer
+
+Create `Dockerfile.landing`:
+
+```dockerfile
+FROM nginx:1.25-alpine
+COPY landing.html /usr/share/nginx/html/index.html
+```
+
+```bash
+docker build -f Dockerfile.landing -t bookstore-landing:v1 .
+docker run -d --name bookstore-landing -p 9081:80 bookstore-landing:v1
 curl http://localhost:9081
 ```
 
@@ -92,6 +121,24 @@ docker volume inspect bookstore-data
 docker exec bookstore-storage2 cat /data/inventory.txt
 ```
 
+
+### Answer
+
+```bash
+docker volume create bookstore-data
+
+docker run -it --name bookstore-storage1 \
+  -v bookstore-data:/data \
+  ubuntu:22.04
+# inside: echo "title=Docker Deep Dive;qty=42" > /data/inventory.txt && exit
+
+docker rm -f bookstore-storage1
+docker run -it --name bookstore-storage2 \
+  -v bookstore-data:/data \
+  ubuntu:22.04
+# inside: cat /data/inventory.txt
+```
+
 ---
 
 ## Task 4 — Host Bind Mount (FE live edit)
@@ -104,22 +151,36 @@ Editors update catalog pages on the host without rebuilding images.
 
 | File | Purpose |
 |------|---------|
-| `task04-live/index.html` | Live catalog page (edit on host) |
+| `live-catalog.html` | Live catalog page (edit on host) |
 
 ### Required
 
-1. Use host directory **`task04-live/`** (do not copy elsewhere).
-2. Run **`nginx:1.25-alpine`** container **`bookstore-live`**:
-   - Port **`9082:80`**
-   - Bind mount: `task04-live/` → **`/usr/share/nginx/html`**
-3. On the **host**, edit `index.html` — add a new book title to the list.
-4. Refresh browser/`curl` — change must appear **without** `docker build`.
+1. Copy `live-catalog.html` to `index.html` in this folder (nginx serves `index.html`).
+2. Bind mount this folder (`.`) to **`/usr/share/nginx/html`**.
+3. Run **`nginx:1.25-alpine`** container **`bookstore-live`**, port **`9082:80`**.
+4. On the **host**, edit `index.html` — add a new book title.
+5. Confirm change via `curl` **without** `docker build`.
 
 ### Verify
 
 ```bash
 curl http://localhost:9082
 # edit index.html on host, then:
+curl http://localhost:9082
+```
+
+
+### Answer
+
+```bash
+cp live-catalog.html index.html
+docker run -d \
+  --name bookstore-live \
+  -p 9082:80 \
+  -v G:/Devops_Hopa/Docker/practice/exam-01-bookstore:/usr/share/nginx/html \
+  nginx:1.25-alpine
+
+# Edit index.html on host, then:
 curl http://localhost:9082
 ```
 
@@ -145,6 +206,20 @@ docker network inspect bookstore-net
 docker exec -it bookstore-api ping -c 3 bookstore-db
 ```
 
+
+### Answer
+
+```bash
+docker network create bookstore-net
+
+docker run -dit --name bookstore-db --network bookstore-net ubuntu:22.04
+docker run -dit --name bookstore-api --network bookstore-net ubuntu:22.04
+
+docker exec -it bookstore-api bash
+apt update && apt install -y iputils-ping
+ping -c 3 bookstore-db
+```
+
 ---
 
 ## Task 6 — Environment Variables
@@ -157,7 +232,7 @@ The bookstore app reads configuration from environment variables at runtime.
 
 | File | Purpose |
 |------|---------|
-| `task06/.env.example` | Reference for expected variable names |
+| `env.example` | Reference for expected variable names |
 
 ### Required
 
@@ -174,6 +249,20 @@ The bookstore app reads configuration from environment variables at runtime.
 docker exec bookstore-env printenv APP_ENV DB_HOST DB_PORT
 ```
 
+
+### Answer
+
+```bash
+docker run -dit \
+  --name bookstore-env \
+  -e APP_ENV=staging \
+  -e DB_HOST=bookstore-db \
+  -e DB_PORT=5432 \
+  ubuntu:22.04
+
+docker exec bookstore-env printenv APP_ENV DB_HOST DB_PORT
+```
+
 ---
 
 ## Task 7 — Docker Compose (FE + DB)
@@ -184,7 +273,7 @@ Deploy a web + database stack for the bookstore staging environment.
 
 ### Required
 
-Create **`task07-compose/docker-compose.yml`** (*student-created*) with:
+Create **`docker-compose.staging.yml`** (*student-created*) with:
 
 | Service | Image | Details |
 |---------|-------|---------|
@@ -195,14 +284,52 @@ Additional requirements:
 
 - Named volume **`bookstore-pg`** mounted at **`/var/lib/postgresql/data`** on `db`
 - Custom network **`bookstore-compose-net`**
-- Run from `task07-compose/`: `docker compose up -d`
+- Run from **exam root**: `docker compose up -d`
 
 ### Verify
 
 ```bash
-cd task07-compose
+cd .
 docker compose ps
 docker compose logs db
+```
+
+
+### Answer
+
+Create `docker-compose.staging.yml`:
+
+```yaml
+services:
+  web:
+    image: nginx:1.25-alpine
+    ports:
+      - "9083:80"
+    networks:
+      - bookstore-compose-net
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_PASSWORD: bookstore123
+      POSTGRES_USER: bookstore
+      POSTGRES_DB: books
+    volumes:
+      - bookstore-pg:/var/lib/postgresql/data
+    networks:
+      - bookstore-compose-net
+
+volumes:
+  bookstore-pg:
+
+networks:
+  bookstore-compose-net:
+```
+
+```bash
+cd .
+docker compose up -d
+docker compose ps
 ```
 
 ---
@@ -219,10 +346,10 @@ Container **`bookstore-broken`** starts and immediately exits.
    ```bash
    docker run --name bookstore-broken ubuntu:22.04
    ```
-   (See also `task08-troubleshooting/broken-command.sh`.)
+   (See also `broken-command.sh`.)
 2. Use `docker ps -a`, `docker logs bookstore-broken`, and `docker inspect bookstore-broken` to diagnose.
 3. Remove the broken container and start a replacement named **`bookstore-broken-fixed`** that **stays running**.
-4. Write the root cause in one sentence in a file **`task08-troubleshooting/root-cause.txt`** (*student-created*).
+4. Write the root cause in one sentence in a file **`root-cause.txt`** (*student-created*).
 
 ### Expected root cause
 
@@ -232,6 +359,26 @@ Container exits because there is no long-running foreground process.
 
 ```bash
 docker ps --filter name=bookstore-broken-fixed
+```
+
+
+### Answer
+
+```bash
+docker run --name bookstore-broken ubuntu:22.04
+docker ps -a --filter name=bookstore-broken
+docker logs bookstore-broken
+docker inspect bookstore-broken
+
+docker rm -f bookstore-broken
+docker run -dit --name bookstore-broken-fixed ubuntu:22.04
+docker ps --filter name=bookstore-broken-fixed
+```
+
+Root cause (`root-cause.txt`):
+
+```text
+Container exited because ubuntu:22.04 has no long-running foreground process when run without -dit or an explicit CMD like sleep infinity.
 ```
 
 ---
@@ -244,7 +391,7 @@ Security policy requires the bookstore app to run as a non-root user.
 
 ### Required
 
-1. Create **`task09-security/Dockerfile`** (*student-created*).
+1. Create **`Dockerfile.secure`** (*student-created*).
 2. Base image: **`ubuntu:22.04`**.
 3. Create Linux user **`bookuser`** (UID does not need to be specified).
 4. Switch to **`bookuser`** with `USER bookuser`.
@@ -259,6 +406,24 @@ docker exec bookstore-secure id
 # Expected: uid=1000(bookuser) or similar, NOT uid=0(root)
 ```
 
+
+### Answer
+
+Create `Dockerfile.secure`:
+
+```dockerfile
+FROM ubuntu:22.04
+RUN useradd -m bookuser
+USER bookuser
+CMD ["sleep", "infinity"]
+```
+
+```bash
+docker build -f Dockerfile.secure -t bookstore-secure:v1 .
+docker run -d --name bookstore-secure bookstore-secure:v1
+docker exec bookstore-secure id
+```
+
 ---
 
 ## Task 10 — Production Deployment Challenge (FE + Compose)
@@ -271,12 +436,12 @@ Deploy a production-ready bookstore frontend with full Docker best practices.
 
 | File | Purpose |
 |------|---------|
-| `task10-prod/fe/index.html` | Production FE page |
-| `task10-prod/.env.example` | Reference env vars |
+| `prod-index.html` | Production FE page |
+| `prod-env.example` | Reference env vars |
 
 ### Required — student-created files
 
-Create all of the following under **`task10-prod/`**:
+Create at **exam root**:
 
 | File | Requirements |
 |------|--------------|
@@ -296,7 +461,7 @@ networks:
 ### Verify
 
 ```bash
-cd task10-prod
+cd .
 docker compose up -d --build
 docker ps
 docker volume ls | grep bookstore-prod
@@ -304,3 +469,56 @@ docker network ls | grep bookstore-prod
 docker inspect $(docker compose ps -q)
 curl http://localhost:9084
 ```
+
+### Answer
+
+Create `Dockerfile.prod`:
+
+```dockerfile
+FROM nginx:1.25-alpine
+COPY fe/ /usr/share/nginx/html/
+RUN adduser -D bookuser
+USER bookuser
+HEALTHCHECK CMD wget -qO- http://localhost || exit 1
+```
+
+Create `.dockerignore`:
+
+```
+.env
+docker-compose*
+.git
+```
+
+Create `docker-compose.yml`:
+
+```yaml
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "9084:8080"
+    environment:
+      APP_ENV: production
+    volumes:
+      - bookstore-prod-data:/data
+    networks:
+      - bookstore-prod-net
+
+volumes:
+  bookstore-prod-data:
+
+networks:
+  bookstore-prod-net:
+```
+
+```bash
+cd .
+docker compose up -d --build
+docker ps
+docker volume ls | grep bookstore-prod
+docker network ls | grep bookstore-prod
+```
+
+---

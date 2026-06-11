@@ -1,8 +1,24 @@
-# Exam 5 Answers — Inventory Management
+# Docker Practice Exam 5 — Inventory Management
+
+**Level:** Mid-Level DevOps Engineer  
+**Duration:** 60–90 Minutes  
 
 ---
 
-## Task 1
+**Format:** Try each task first — the **Answer** is directly below it.
+
+## Task 1 — Container Deployment
+
+| Setting | Value |
+|---------|-------|
+| Image | **`mariadb:10.11`** |
+| Container | **`inventory-db-temp`** |
+| Env | `MARIADB_ROOT_PASSWORD=warehouse123` |
+| Ports | **`9480:3306`** |
+| Restart | **`unless-stopped`** |
+
+
+### Answer
 
 ```bash
 docker run -d \
@@ -16,7 +32,19 @@ docker ps
 
 ---
 
-## Task 2
+## Task 2 — Image Creation (FE dashboard)
+
+### Provided
+
+- `dashboard.html`
+
+### Required
+
+1. **`Dockerfile.landing`**, **`nginx:1.25-alpine`**
+2. Build **`inventory-dash:v1`**, run **`inventory-dash`**, **`9481:80`**
+
+
+### Answer
 
 ```dockerfile
 FROM nginx
@@ -33,7 +61,14 @@ docker run -d --name inventory-dash -p 9481:80 inventory-dash:v1
 
 ---
 
-## Task 3
+## Task 3 — Persistent Storage
+
+1. Volume **`inventory-stock`**
+2. **`inv-store-a`** / **`inv-store-b`** (`ubuntu:22.04`), mount **`/stock`**
+3. File **`/stock/count.txt`**: `items=500;warehouse=A`
+
+
+### Answer
 
 ```bash
 docker volume create inventory-stock
@@ -46,7 +81,20 @@ cat /stock/count.txt
 
 ---
 
-## Task 4
+## Task 4 — Host Bind Mount (CSV imports)
+
+### Provided
+
+- `items.csv`
+
+### Required
+
+1. **`ubuntu:22.04`**, **`inventory-import`**
+2. Bind mount **`./`** → **`/imports`**
+3. Read CSV from inside container
+
+
+### Answer
 
 ```bash
 mkdir -p /opt/inventory/imports
@@ -58,7 +106,15 @@ docker exec inventory-import cat /imports/items.csv
 
 ---
 
-## Task 5
+## Task 5 — Networking
+
+1. Network **`inventory-net`**
+2. **`mariadb:10.11`** as **`inventory-mariadb`** (`MARIADB_ROOT_PASSWORD=pass`)
+3. **`ubuntu:22.04`** as **`inventory-api`** on same network
+4. Resolve **`inventory-mariadb`** hostname from API container
+
+
+### Answer
 
 ```bash
 docker network create inventory-net
@@ -70,7 +126,18 @@ docker exec inventory-api getent hosts inventory-mariadb
 
 ---
 
-## Task 6
+## Task 6 — Environment Variables
+
+### Provided
+
+- `env.example`
+
+Container **`inventory-sync`**:
+
+- `APP_ENV=production`, `DB_HOST=inventory-mariadb`, `SYNC_INTERVAL=300`
+
+
+### Answer
 
 ```bash
 docker run -dit --name inventory-sync \
@@ -83,7 +150,20 @@ docker exec inventory-sync printenv
 
 ---
 
-## Task 7
+## Task 7 — Docker Compose (FE + MariaDB + Adminer)
+
+**`docker-compose.staging.yml`**:
+
+| Service | Image | Ports |
+|---------|-------|-------|
+| `web` | **`nginx:1.25-alpine`** | **`9483:80`** |
+| `db` | **`mariadb:10.11`** | internal, vol **`inventory-db:/var/lib/mysql`**, password `inv123` |
+| `adminer` | **`adminer:4`** | **`9485:8080`** |
+
+Network **`inventory-compose-net`**
+
+
+### Answer
 
 ```yaml
 services:
@@ -115,7 +195,12 @@ networks:
 
 ---
 
-## Task 8
+## Task 8 — Troubleshooting
+
+`docker run --name inventory-cron ubuntu:22.04` → fix **`inventory-cron-fixed`**
+
+
+### Answer
 
 ```bash
 docker logs inventory-cron
@@ -127,7 +212,12 @@ docker run -dit --name inventory-cron ubuntu
 
 ---
 
-## Task 9
+## Task 9 — Security
+
+User **`invuser`**, **`ubuntu:22.04`**, image **`inventory-secure:v1`**
+
+
+### Answer
 
 ```dockerfile
 FROM ubuntu
@@ -144,7 +234,14 @@ docker exec inventory-secure id
 
 ---
 
-## Task 10
+## Task 10 — Production Challenge
+
+****exam root****:
+
+- `Dockerfile`: **`nginx:1.25-alpine`**, **`invuser`**, HEALTHCHECK (`curl -f http://localhost`)
+- Compose: **`9484:8080`**, volume **`inventory-reports:/reports`**, network **`inventory-prod-net`**, `APP_ENV=production`
+
+### Answer
 
 ```dockerfile
 FROM nginx
@@ -171,3 +268,5 @@ volumes:
 networks:
   inventory-prod-net:
 ```
+
+---
