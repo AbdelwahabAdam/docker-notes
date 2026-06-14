@@ -2,192 +2,443 @@
 
 **Level:** Mid-Level DevOps Engineer  
 **Duration:** 60–90 Minutes  
+**Folder:** `exam-10-healthcare/` — run all commands from this directory.
 
 ---
 
-**Format:** Try each task first — the **Answer** is directly below it.
+## How to read each task
+
+| Section | Meaning |
+|---------|---------|
+| **Goal** | What skill this task tests |
+| **Scenario** | Real-world reason for the task |
+| **Provided files** | Files already in this folder |
+| **What you must do** | Numbered steps — complete all of them |
+| **Settings table** | Exact image, container name, ports — use these values |
+| **How to verify** | Commands to confirm success |
+| **Answer** | Solution — try first, then compare |
+
+> **Windows bind mounts:** `G:/Devops_Hopa/Docker/practice/exam-10-healthcare`
+
+---
 
 ## Task 1 — Container Deployment
 
+### Goal
+
+Run a pre-built nginx container in the background with a restart policy.
+
+### Scenario
+
+The healthcare team needs a quick patient portal gateway while the full application is being built.
+
+### What you must do
+
+1. Pull the image if you do not have it locally.
+2. Run nginx as a **detached** container (`-d`).
+3. Confirm the container stays **Up** after starting.
+
+### Settings (use exactly these values)
+
 | Setting | Value |
 |---------|-------|
-| Image | **`nginx:1.25.3-alpine`** (tag: `stable-alpine` OK) |
-| Container | **`health-portal-web`** |
-| Ports | **`9980:80`** |
-| Restart | **`unless-stopped`** |
+| Image | `nginx:1.25-alpine` |
+| Container name | `health-portal-web` |
+| Port mapping (host:container) | `9980:80` |
+| Restart policy | `unless-stopped` |
+| Detached | Yes (`-d`) |
 
-### Verify
+### How to verify
 
 ```bash
 docker ps --filter name=health-portal-web
-docker inspect health-portal-web --format='{{.HostConfig.RestartPolicy.Name}}'
+curl http://localhost:9980
 ```
-
 
 ### Answer
 
 ```bash
+docker pull nginx:1.25-alpine
 docker run -d \
   --name health-portal-web \
   -p 9980:80 \
   --restart unless-stopped \
-  nginx:stable-alpine
+  nginx:1.25-alpine
 
-docker ps
-docker inspect health-portal-web
+docker ps --filter name=health-portal-web
+curl http://localhost:9980
 ```
 
 ---
 
-## Task 2 — Image Creation (FE)
+## Task 2 — Image Creation (welcome page)
 
-### Provided
+### Goal
 
-- `welcome.html`
+Build a **custom Docker image** from a Dockerfile and run a container from it.
 
-### Required
+### Scenario
 
-1. **`Dockerfile.landing`**, base **`nginx:1.25-alpine`**
-2. Build **`health-welcome:v1`**
-3. Tag also as **`health-welcome:latest`**: `docker tag health-welcome:v1 health-welcome:latest`
-4. Run **`health-welcome`**, **`9981:80`**
+The designer delivered a patient welcome page. Package it into an image for consistent deployment.
 
+### Provided files
+
+| File | Description |
+|------|-------------|
+| `welcome.html` | Patient welcome page — will be copied into the image |
+
+### What you must do
+
+1. Create a file named **`Dockerfile.landing`** in this folder.
+2. Use **`nginx:1.25-alpine`** as the base image.
+3. Copy `welcome.html` into the image as **`/usr/share/nginx/html/index.html`**.
+4. Build the image with tag **`health-welcome:v1`**.
+5. Run a container named **`health-welcome`** from that image on port **`9981:80`**.
+
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Dockerfile name | `Dockerfile.landing` |
+| Base image | `nginx:1.25-alpine` |
+| Image tag | `health-welcome:v1` |
+| Container name | `health-welcome` |
+| Port mapping | `9981:80` |
+
+### How to verify
+
+```bash
+docker images health-welcome
+curl http://localhost:9981
+```
 
 ### Answer
 
+Create `Dockerfile.landing`:
+
 ```dockerfile
-FROM nginx
+FROM nginx:1.25-alpine
 COPY welcome.html /usr/share/nginx/html/index.html
 ```
 
 ```bash
-docker build -f Dockerfile.landing
-docker build -t health-welcome:v1 .
-docker tag health-welcome:v1 health-welcome:latest
+docker build -f Dockerfile.landing -t health-welcome:v1 .
 docker run -d --name health-welcome -p 9981:80 health-welcome:v1
-docker images | grep health-welcome
+curl http://localhost:9981
 ```
 
 ---
 
-## Task 3 — Persistent Storage
+## Task 3 — Persistent Storage (named volume)
 
-Volume **`health-audit`**, **`health-audit1`** / **`health-audit2`**, file **`/audit/access.log`**: `2024-06-10 user=admin action=login`
+### Goal
 
+Store data in a **named Docker volume** so it survives when the container is deleted.
+
+### Scenario
+
+Audit logs must not be lost when the audit container is replaced.
+
+### What you must do
+
+1. Create a named volume called **`health-audit`**.
+2. Start container **`health-audit1`** from **`ubuntu:22.04`** with `-it`.
+3. Mount volume **`health-audit`** at **`/audit`** inside the container.
+4. Inside the container, create file **`/audit/access.log`** with content: `2024-06-10 user=admin action=login`
+5. Exit, then **remove** container `health-audit1` completely.
+6. Start a **new** container **`health-audit2`** (same image, same volume, same mount path).
+7. Prove the file still exists inside `health-audit2`.
+
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Volume name | `health-audit` |
+| Mount path (inside container) | `/audit` |
+| First container name | `health-audit1` |
+| Second container name | `health-audit2` |
+| Image | `ubuntu:22.04` |
+
+### How to verify
+
+```bash
+docker volume inspect health-audit
+docker exec health-audit2 cat /audit/access.log
+```
 
 ### Answer
 
 ```bash
 docker volume create health-audit
-docker run -it --name health-audit1 -v health-audit:/audit ubuntu
-echo "user login 10:00" > /audit/access.log && exit
+
+docker run -it --name health-audit1 \
+  -v health-audit:/audit \
+  ubuntu:22.04
+# inside container:
+echo "2024-06-10 user=admin action=login" > /audit/access.log
+exit
+
 docker rm -f health-audit1
-docker run -it --name health-audit2 -v health-audit:/audit ubuntu
+
+docker run -it --name health-audit2 \
+  -v health-audit:/audit \
+  ubuntu:22.04
+# inside container:
 cat /audit/access.log
+exit
 ```
 
 ---
 
-## Task 4 — Host Bind Mount (compliance docs, read-only)
+## Task 4 — Host Bind Mount (compliance docs)
 
-### Provided
+### Goal
 
-- `policy.html`
+Mount a **host folder** into a container so nginx serves compliance documents directly from disk — **no rebuild**.
 
-**`health-docs`**, **`nginx:1.25-alpine`**, **`9982:80`**, bind **`./`** → **`/usr/share/nginx/html:ro`**
+### Scenario
 
-Confirm container **cannot** modify host files.
+Compliance officers publish policy documents on the host. Nginx should serve them read-only so the container cannot modify host files.
 
+### Provided files
+
+| File | Description |
+|------|-------------|
+| `policy.html` | Compliance policy page — you must copy it to `index.html` (nginx default page) |
+
+### What you must do
+
+**Step A — Prepare the host folder**
+
+1. In this folder (`exam-10-healthcare/`), copy `policy.html` to a new file named **`index.html`**:
+   ```bash
+   cp policy.html index.html
+   ```
+
+**Step B — Run nginx with read-only bind mount**
+
+2. Run an nginx container that **bind-mounts this entire folder** into nginx's web root **read-only** (`:ro`).
+3. The left side of the volume is your **host path** (this exam folder).
+4. The right side inside the container is **`/usr/share/nginx/html`** (where nginx serves files).
+
+**Step C — Test live editing**
+
+5. Edit `index.html` on your host (add a compliance note).
+6. Run `curl http://localhost:9982` again — you must see the change **without** running `docker build`.
+
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Image | `nginx:1.25-alpine` |
+| Container name | `health-docs` |
+| Port mapping (host:container) | `9982:80` |
+| Bind mount (host path) | This exam folder — e.g. `G:/Devops_Hopa/Docker/practice/exam-10-healthcare` |
+| Bind mount (container path) | `/usr/share/nginx/html:ro` |
+| Detached | Yes (`-d`) |
+
+**Example `docker run` flags for Step B:**
+
+```text
+--name health-docs
+-p 9982:80
+-v <HOST_PATH_TO_exam-10-healthcare>:/usr/share/nginx/html:ro
+```
+
+### How to verify
+
+```bash
+curl http://localhost:9982
+docker ps --filter name=health-docs
+# edit index.html on host, then:
+curl http://localhost:9982
+```
 
 ### Answer
 
 ```bash
-docker run -d --name health-docs -p 9982:80 \
+cp policy.html index.html
+
+docker run -d \
+  --name health-docs \
+  -p 9982:80 \
   -v G:/Devops_Hopa/Docker/practice/exam-10-healthcare:/usr/share/nginx/html:ro \
   nginx:1.25-alpine
-docker exec health-docs cat /usr/share/nginx/html/policy.html
+
+curl http://localhost:9982
+# edit index.html on host, then:
+curl http://localhost:9982
 ```
 
 ---
 
-## Task 5 — Networking (BE → DB)
+## Task 5 — Networking (container DNS)
 
-### Provided (BE reference — optional to containerize)
+### Goal
 
-- `api-server.js`
+Two containers on a **custom network** must reach each other **by container name** (Docker DNS).
 
-### Required
+### Scenario
 
-1. Network **`health-net`**
-2. **`postgres:15.5-alpine`** as **`health-db`**, env `POSTGRES_PASSWORD=health123`
-3. **`ubuntu:22.04`** as **`health-api`** on `health-net`
-4. Ping/resolve **`health-db`** from **`health-api`**
+The healthcare API must connect to PostgreSQL using the hostname `health-db` — not a hardcoded IP address.
 
+### Provided files
+
+| File | Description |
+|------|-------------|
+| `api-server.js` | Backend API reference (optional for future containerization) |
+
+### What you must do
+
+1. Create a Docker network named **`health-net`**.
+2. Start **`health-db`** from image **`postgres:15-alpine`** on network `health-net` with `POSTGRES_PASSWORD=health123` (detached).
+3. Start **`health-api`** from image **`ubuntu:22.04`** on network `health-net` (detached + TTY: `-dit`).
+4. Inside `health-api`, verify hostname **`health-db`** resolves (use `getent hosts health-db` or `ping health-db` after installing ping).
+
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Network name | `health-net` |
+| DB container name | `health-db` |
+| DB image | `postgres:15-alpine` |
+| DB password | `health123` |
+| API container name | `health-api` |
+| API image | `ubuntu:22.04` |
+
+### How to verify
+
+```bash
+docker network inspect health-net
+docker exec health-api getent hosts health-db
+```
 
 ### Answer
 
 ```bash
 docker network create health-net
-docker run -d --name health-db --network health-net \
-  -e POSTGRES_PASSWORD=health123 postgres:15-alpine
-docker run -dit --name health-api --network health-net ubuntu
-docker exec health-api bash -c "apt update && apt install -y iputils-ping && ping -c 2 health-db"
+
+docker run -d \
+  --name health-db \
+  --network health-net \
+  -e POSTGRES_PASSWORD=health123 \
+  postgres:15-alpine
+
+docker run -dit \
+  --name health-api \
+  --network health-net \
+  ubuntu:22.04
+
+docker exec health-api getent hosts health-db
 ```
 
 ---
 
 ## Task 6 — Environment Variables
 
-### Provided
+### Goal
 
-- `health.env` (contains `AUDIT_ENABLED=true`)
+Pass configuration into a container at **runtime** using an env file and `-e` flags.
 
-**`health-app-env`** (`ubuntu:22.04`):
+### Scenario
 
-- `--env-file health.env`
-- Plus inline: `APP_ENV=production`, `DB_HOST=health-db`, `DB_PORT=5432`
+The healthcare app loads audit settings from a file and database connection details at runtime.
 
-Verify all four variables.
+### Provided files
 
+| File | Description |
+|------|-------------|
+| `health.env` | Env file — load with `--env-file health.env` |
+
+### What you must do
+
+1. Run container **`health-app-env`** from **`ubuntu:22.04`** in detached mode (`-dit`).
+2. Load variables from **`health.env`** using **`--env-file health.env`**.
+3. Also set these inline with `-e`:
+   - `APP_ENV=production`
+   - `DB_HOST=health-db`
+   - `DB_PORT=5432`
+4. Verify all four variables (`APP_ENV`, `DB_HOST`, `DB_PORT`, `AUDIT_ENABLED`) exist inside the container.
+
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Image | `ubuntu:22.04` |
+| Container name | `health-app-env` |
+| Env file | `health.env` |
+| `APP_ENV` | `production` |
+| `DB_HOST` | `health-db` |
+| `DB_PORT` | `5432` |
+
+### How to verify
+
+```bash
+docker exec health-app-env printenv APP_ENV DB_HOST DB_PORT AUDIT_ENABLED
+```
 
 ### Answer
 
 ```bash
-cat > health.env <<EOF
-AUDIT_ENABLED=true
-EOF
-
-docker run -dit --name health-app-env \
+docker run -dit \
+  --name health-app-env \
   --env-file health.env \
   -e APP_ENV=production \
   -e DB_HOST=health-db \
   -e DB_PORT=5432 \
-  ubuntu
+  ubuntu:22.04
 
-docker exec health-app-env printenv | grep -E 'APP|DB|AUDIT'
+docker exec health-app-env printenv APP_ENV DB_HOST DB_PORT AUDIT_ENABLED
 ```
 
 ---
 
-## Task 7 — Docker Compose (FE + Postgres + Redis)
+## Task 7 — Docker Compose (multi-service stack)
 
-**`docker-compose.staging.yml`**:
+### Goal
 
-| Service | Image | Details |
-|---------|-------|---------|
-| `web` | **`nginx:1.25-alpine`** | **`9983:80`**, `depends_on: [db, cache]` |
-| `db` | **`postgres:15.5-alpine`** | password `health123`, vol **`health-pg:/var/lib/postgresql/data`** |
-| `cache` | **`redis:7.2-alpine`** | **`restart: always`** |
+Define and run **multiple services** (web + postgres + redis) in one YAML file.
 
-Network **`health-compose-net`**
+### Scenario
 
+Deploy the healthcare staging stack: nginx frontend, PostgreSQL database, and Redis cache.
+
+### What you must do
+
+1. Create a file named **`docker-compose.staging.yml`** in this folder.
+2. Define three services: **`web`**, **`db`**, **`cache`**.
+3. Declare a named volume for PostgreSQL data and a custom network.
+4. Start everything with `docker compose -f docker-compose.staging.yml up -d`.
+
+### Settings (use exactly these values)
+
+| Service | Image | Ports | Other |
+|---------|-------|-------|-------|
+| `web` | `nginx:1.25-alpine` | `9983:80` | `depends_on: [db, cache]`, on network `health-compose-net` |
+| `db` | `postgres:15-alpine` | (none on host) | password `health123`, volume `health-pg:/var/lib/postgresql/data` |
+| `cache` | `redis:7.2-alpine` | (none on host) | `restart: always`, on network `health-compose-net` |
+
+| Resource | Name |
+|----------|------|
+| Volume | `health-pg` |
+| Network | `health-compose-net` |
+
+### How to verify
+
+```bash
+docker compose -f docker-compose.staging.yml up -d
+docker compose -f docker-compose.staging.yml ps
+curl http://localhost:9983
+```
 
 ### Answer
+
+Create `docker-compose.staging.yml`:
 
 ```yaml
 services:
   web:
-    image: nginx
+    image: nginx:1.25-alpine
     ports:
       - "9983:80"
     depends_on:
@@ -206,7 +457,7 @@ services:
       - health-compose-net
 
   cache:
-    image: redis
+    image: redis:7.2-alpine
     restart: always
     networks:
       - health-compose-net
@@ -219,64 +470,117 @@ networks:
 ```
 
 ```bash
-docker compose up -d
-docker compose ps
+docker compose -f docker-compose.staging.yml up -d
+docker compose -f docker-compose.staging.yml ps
 ```
 
 ---
 
-## Task 8 — Troubleshooting
+## Task 8 — Troubleshooting (container exits immediately)
 
-Reproduce: `docker run --name health-sync ubuntu:22.04`
+### Goal
 
-Fix **`health-sync-fixed`**, document root cause in **`root-cause.txt`**
+Find **why** a container exits and fix it so it stays running.
 
+### Scenario
+
+Container `health-sync` was started incorrectly and exits right away.
+
+### What you must do
+
+1. Run this command to reproduce the problem:
+   ```bash
+   docker run --name health-sync ubuntu:22.04
+   ```
+2. Use `docker ps -a`, `docker logs health-sync`, and `docker inspect health-sync` to investigate.
+3. Remove the broken container.
+4. Start a **fixed** container named **`health-sync-fixed`** that **stays running**.
+5. Write one sentence explaining the root cause in **`root-cause.txt`**.
+
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Broken container name | `health-sync` |
+| Fixed container name | `health-sync-fixed` |
+| Image | `ubuntu:22.04` |
+| Fix hint | Container needs a long-running process — use `-dit` or `CMD sleep infinity` |
+
+### How to verify
+
+```bash
+docker ps --filter name=health-sync-fixed
+cat root-cause.txt
+```
 
 ### Answer
 
 ```bash
-docker ps -a | grep health-sync
+docker run --name health-sync ubuntu:22.04
+docker ps -a --filter name=health-sync
 docker logs health-sync
-docker inspect health-sync --format='{{.State.ExitCode}}'
 
 docker rm -f health-sync
-docker run -dit --name health-sync ubuntu
-docker ps
+docker run -dit --name health-sync-fixed ubuntu:22.04
+docker ps --filter name=health-sync-fixed
 ```
 
-**Root cause:** Container started without a persistent foreground process (e.g. `docker run ubuntu` exits immediately).
+`root-cause.txt`:
+
+```text
+Container exited because ubuntu:22.04 has no foreground process when run without -dit.
+```
 
 ---
 
-## Task 9 — Security
+## Task 9 — Security (non-root user)
 
-**`Dockerfile.secure`**: **`nginx:1.25-alpine`**, user **`healthuser`**
+### Goal
 
-> Note: If nginx fails as non-root on port 80, use `CMD ["sleep", "infinity"]` for this exercise and document why.
+Build an image that runs as a **non-root** Linux user.
 
-Build **`health-secure:v1`**, run **`health-secure`**, verify UID ≠ 0.
+### Scenario
 
+Healthcare security policy forbids running application containers as root.
+
+### What you must do
+
+1. Create **`Dockerfile.secure`** using base image **`ubuntu:22.04`**.
+2. Create Linux user **`healthuser`** inside the image.
+3. Add `USER healthuser` so the container runs as that user.
+4. Set `CMD ["sleep", "infinity"]` to keep the container alive.
+5. Build image **`health-secure:v1`**, run container **`health-secure`**, verify UID is not `0`.
+
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Dockerfile | `Dockerfile.secure` |
+| Base image | `ubuntu:22.04` |
+| Username | `healthuser` |
+| Image tag | `health-secure:v1` |
+| Container name | `health-secure` |
+
+### How to verify
+
+```bash
+docker exec health-secure id
+# uid must NOT be 0 (root)
+```
 
 ### Answer
 
-```dockerfile
-FROM nginx:stable-alpine
-RUN adduser -D healthuser
-USER healthuser
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-Note: nginx normally needs root to bind port 80; for exam purposes use sleep pattern if nginx fails:
+Create `Dockerfile.secure`:
 
 ```dockerfile
-FROM nginx:stable-alpine
-RUN adduser -D healthuser
+FROM ubuntu:22.04
+RUN useradd -m healthuser
 USER healthuser
 CMD ["sleep", "infinity"]
 ```
 
 ```bash
-docker build -t health-secure:v1 .
+docker build -f Dockerfile.secure -t health-secure:v1 .
 docker run -d --name health-secure health-secure:v1
 docker exec health-secure id
 ```
@@ -285,61 +589,72 @@ docker exec health-secure id
 
 ## Task 10 — Production Deployment Challenge
 
-### Provided
+### Goal
 
-- `prod-index.html`
+Combine everything: custom Dockerfile, Compose, volumes, network, healthcheck, non-root user.
 
-### Required — create in **exam root**
+### Scenario
 
-| File | Specification |
-|------|---------------|
-| **`Dockerfile`** | **`nginx:1.25-alpine`**, copy `fe/`, user **`healthuser`**, `HEALTHCHECK CMD wget -qO- http://localhost \|\| exit 1` |
-| **`.dockerignore`** | Exclude `.env`, `docker-compose*`, `.git` |
-| **`docker-compose.yml`** | Port **`9984:8080`**, env `APP_ENV=production`, `COMPLIANCE_MODE=strict`, volume **`health-prod-data:/data`**, network **`health-prod-net`**, restart **`unless-stopped`** |
+Deploy a production-ready healthcare portal edge node with Docker Compose.
 
-### Verify
+### Provided files
+
+| File | Description |
+|------|-------------|
+| `prod-index.html` | Production frontend page — copy into image in your Dockerfile |
+
+### What you must do
+
+Create these files in **this folder**:
+
+| File you create | Requirements |
+|-----------------|--------------|
+| `Dockerfile.prod` | Base `nginx:1.25-alpine`, copy `prod-index.html` to web root, user `healthuser`, include `HEALTHCHECK` |
+| `.dockerignore` | Exclude `.env`, `docker-compose*.yml`, `.git` |
+| `docker-compose.prod.yml` | Build from `Dockerfile.prod`, restart `unless-stopped`, env vars + volume + network (see settings) |
+
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Image build file | `Dockerfile.prod` |
+| Compose file | `docker-compose.prod.yml` |
+| Port mapping | `9984:8080` |
+| Environment | `APP_ENV=production`, `COMPLIANCE_MODE=strict` |
+| Named volume | `health-prod-data` mounted at `/data` |
+| Network | `health-prod-net` |
+| Restart policy | `unless-stopped` |
+| Non-root user | `healthuser` |
+
+### How to verify
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
-docker inspect --format='{{.State.Health.Status}}' $(docker compose -f docker-compose.prod.yml ps -q)
+docker compose -f docker-compose.prod.yml ps
+curl http://localhost:9984
+docker volume ls | grep health-prod
 ```
-
----
-
-## Bonus (Optional)
-
-Create **`docker-compose.yml`** + **`docker-compose.prod.yml`** + **`docker-compose.dev.yml`**:
-
-- Prod: port 9984, `APP_ENV=production`
-- Dev: bind mount `./fe:/usr/share/nginx/html:ro`, `APP_ENV=development`
-
-Deploy: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`
 
 ### Answer
 
-`.dockerignore`:
-
-```
-.env
-docker-compose*
-.git
-```
-
-Dockerfile:
+`Dockerfile.prod`:
 
 ```dockerfile
-FROM nginx:stable-alpine
+FROM nginx:1.25-alpine
+COPY prod-index.html /usr/share/nginx/html/index.html
 RUN adduser -D healthuser
 USER healthuser
 HEALTHCHECK CMD wget -qO- http://localhost || exit 1
 ```
 
-`docker-compose.yml`:
+`docker-compose.prod.yml`:
 
 ```yaml
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
     restart: unless-stopped
     ports:
       - "9984:8080"
@@ -358,63 +673,10 @@ networks:
   health-prod-net:
 ```
 
-Deploy and verify:
-
 ```bash
-docker compose up -d --build
-docker ps
-docker volume ls
-docker network ls
-docker inspect $(docker compose ps -q)
-docker inspect --format='{{.State.Health.Status}}' $(docker compose ps -q)
-```
-
----
-
-## Bonus — Multi-Environment Compose
-
-`docker-compose.yml` (base):
-
-```yaml
-services:
-  app:
-    build: .
-    networks:
-      - health-net
-    volumes:
-      - health-data:/data
-volumes:
-  health-data:
-networks:
-  health-net:
-```
-
-`docker-compose.prod.yml`:
-
-```yaml
-services:
-  app:
-    restart: unless-stopped
-    ports:
-      - "9984:8080"
-    environment:
-      APP_ENV: production
-```
-
-`docker-compose.dev.yml`:
-
-```yaml
-services:
-  app:
-    volumes:
-      - ./src:/app/src:ro
-    environment:
-      APP_ENV: development
-```
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml ps
+curl http://localhost:9984
 ```
 
 ---

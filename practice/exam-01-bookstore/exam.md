@@ -2,33 +2,58 @@
 
 **Level:** Mid-Level DevOps Engineer  
 **Duration:** 60–90 Minutes  
-**Concepts:** All 10 core Docker topics  
-**Format:** Try each task first — the **Answer** is directly below it.
+**Folder:** `exam-01-bookstore/` — run all commands from this directory.
+
+---
+
+## How to read each task
+
+| Section | Meaning |
+|---------|---------|
+| **Goal** | What skill this task tests |
+| **Scenario** | Real-world reason for the task |
+| **Provided files** | Files already in this folder |
+| **What you must do** | Numbered steps — complete all of them |
+| **Settings table** | Exact image, container name, ports — use these values |
+| **How to verify** | Commands to confirm success |
+| **Answer** | Solution — try first, then compare |
+
+> **Windows bind mounts:** `G:/Devops_Hopa/Docker/practice/exam-01-bookstore`
 
 ---
 
 ## Task 1 — Container Deployment
 
+### Goal
+
+Run a pre-built nginx container in the background with a restart policy.
+
 ### Scenario
 
-The bookstore team needs a temporary catalog web server for a demo.
+The bookstore team needs a quick catalog gateway page while the full storefront is being built.
 
-### Required
+### What you must do
 
-1. Pull image **`nginx:1.25-alpine`** (if not present locally).
-2. Run a container named **`bookstore-web`** from that image.
-3. Publish container port **`80`** to host port **`9080`** (`9080:80`).
-4. Set restart policy to **`unless-stopped`**.
-5. Run detached (`-d`).
-6. Verify with `docker ps` — status must be **Up**.
+1. Pull the image if you do not have it locally.
+2. Run nginx as a **detached** container (`-d`).
+3. Confirm the container stays **Up** after starting.
 
-### Verify
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Image | `nginx:1.25-alpine` |
+| Container name | `bookstore-web` |
+| Port mapping (host:container) | `9080:80` |
+| Restart policy | `unless-stopped` |
+| Detached | Yes (`-d`) |
+
+### How to verify
 
 ```bash
 docker ps --filter name=bookstore-web
 curl http://localhost:9080
 ```
-
 
 ### Answer
 
@@ -46,36 +71,46 @@ curl http://localhost:9080
 
 ---
 
-## Task 2 — Image Creation (FE)
+## Task 2 — Image Creation (landing page)
+
+### Goal
+
+Build a **custom Docker image** from a Dockerfile and run a container from it.
 
 ### Scenario
 
-The designer delivered a static landing page. Build and deploy it as a custom image.
+The designer delivered a static landing page. Package it into an image so anyone can run the same page without copying files manually.
 
 ### Provided files
 
-| File | Purpose |
-|------|---------|
-| `landing.html` | Frontend landing page |
+| File | Description |
+|------|-------------|
+| `landing.html` | Bookstore landing page — will be copied into the image |
 
-### Required
+### What you must do
 
-1. Create **`Dockerfile.landing`** (*student-created*).
-2. Base image: **`nginx:1.25-alpine`**.
-3. Copy `landing.html` (or the provided HTML file) to **`/usr/share/nginx/html/index.html`**.
-4. Build from exam root:
-   - Image name: **`bookstore-landing`**
-   - Tag: **`v1`**
-   - Full reference: `bookstore-landing:v1`
-5. Run container **`bookstore-landing`**, detached, port **`9081:80`**.
+1. Create a file named **`Dockerfile.landing`** in this folder.
+2. Use **`nginx:1.25-alpine`** as the base image.
+3. Copy `landing.html` into the image as **`/usr/share/nginx/html/index.html`**.
+4. Build the image with tag **`bookstore-landing:v1`**.
+5. Run a container named **`bookstore-landing`** from that image on port **`9081:80`**.
 
-### Verify
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Dockerfile name | `Dockerfile.landing` |
+| Base image | `nginx:1.25-alpine` |
+| Image tag | `bookstore-landing:v1` |
+| Container name | `bookstore-landing` |
+| Port mapping | `9081:80` |
+
+### How to verify
 
 ```bash
 docker images bookstore-landing
 curl http://localhost:9081
 ```
-
 
 ### Answer
 
@@ -94,33 +129,42 @@ curl http://localhost:9081
 
 ---
 
-## Task 3 — Persistent Storage
+## Task 3 — Persistent Storage (named volume)
+
+### Goal
+
+Store data in a **named Docker volume** so it survives when the container is deleted.
 
 ### Scenario
 
-Book inventory data must survive container recreation.
+Book inventory data must not be lost when the storage container is replaced.
 
-### Required
+### What you must do
 
-1. Create a named volume: **`bookstore-data`**.
-2. Run **`ubuntu:22.04`** container **`bookstore-storage1`**:
-   - Mount `bookstore-data` at **`/data`**
-   - Interactive terminal (`-it`) for initial setup
-3. Inside the container, create **`/data/inventory.txt`** with content:
-   ```text
-   title=Docker Deep Dive;qty=42
-   ```
-4. Stop and remove **`bookstore-storage1`** (`docker rm -f`).
-5. Run **`bookstore-storage2`** (`ubuntu:22.04`, same volume mount at `/data`).
-6. Confirm **`/data/inventory.txt`** still exists and content is intact.
+1. Create a named volume called **`bookstore-data`**.
+2. Start container **`bookstore-storage1`** from **`ubuntu:22.04`** with `-it`.
+3. Mount volume **`bookstore-data`** at **`/data`** inside the container.
+4. Inside the container, create file **`/data/inventory.txt`** with content: `title=Docker Deep Dive;qty=42`
+5. Exit, then **remove** container `bookstore-storage1` completely.
+6. Start a **new** container **`bookstore-storage2`** (same image, same volume, same mount path).
+7. Prove the file still exists inside `bookstore-storage2`.
 
-### Verify
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Volume name | `bookstore-data` |
+| Mount path (inside container) | `/data` |
+| First container name | `bookstore-storage1` |
+| Second container name | `bookstore-storage2` |
+| Image | `ubuntu:22.04` |
+
+### How to verify
 
 ```bash
 docker volume inspect bookstore-data
 docker exec bookstore-storage2 cat /data/inventory.txt
 ```
-
 
 ### Answer
 
@@ -130,125 +174,198 @@ docker volume create bookstore-data
 docker run -it --name bookstore-storage1 \
   -v bookstore-data:/data \
   ubuntu:22.04
-# inside: echo "title=Docker Deep Dive;qty=42" > /data/inventory.txt && exit
+# inside container:
+echo "title=Docker Deep Dive;qty=42" > /data/inventory.txt
+exit
 
 docker rm -f bookstore-storage1
+
 docker run -it --name bookstore-storage2 \
   -v bookstore-data:/data \
   ubuntu:22.04
-# inside: cat /data/inventory.txt
+# inside container:
+cat /data/inventory.txt
+exit
 ```
 
 ---
 
-## Task 4 — Host Bind Mount (FE live edit)
+## Task 4 — Host Bind Mount (live catalog)
+
+### Goal
+
+Mount a **host folder** into a container so file changes on your machine appear instantly inside nginx — **no rebuild**.
 
 ### Scenario
 
-Editors update catalog pages on the host without rebuilding images.
+Editors update catalog pages on their laptop. Nginx should serve those files directly from disk during development.
 
 ### Provided files
 
-| File | Purpose |
-|------|---------|
-| `live-catalog.html` | Live catalog page (edit on host) |
+| File | Description |
+|------|-------------|
+| `live-catalog.html` | Live catalog page — you must copy it to `index.html` (nginx default page) |
 
-### Required
+### What you must do
 
-1. Copy `live-catalog.html` to `index.html` in this folder (nginx serves `index.html`).
-2. Bind mount this folder (`.`) to **`/usr/share/nginx/html`**.
-3. Run **`nginx:1.25-alpine`** container **`bookstore-live`**, port **`9082:80`**.
-4. On the **host**, edit `index.html` — add a new book title.
-5. Confirm change via `curl` **without** `docker build`.
+**Step A — Prepare the host folder**
 
-### Verify
+1. In this folder (`exam-01-bookstore/`), copy `live-catalog.html` to a new file named **`index.html`**:
+   ```bash
+   cp live-catalog.html index.html
+   ```
+
+**Step B — Run nginx with bind mount**
+
+2. Run an nginx container that **bind-mounts this entire folder** into nginx's web root.
+3. The left side of the volume is your **host path** (this exam folder).
+4. The right side inside the container is **`/usr/share/nginx/html`** (where nginx serves files).
+
+**Step C — Test live editing**
+
+5. Edit `index.html` on your host (add a new book title).
+6. Run `curl http://localhost:9082` again — you must see the change **without** running `docker build`.
+
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Image | `nginx:1.25-alpine` |
+| Container name | `bookstore-live` |
+| Port mapping (host:container) | `9082:80` |
+| Bind mount (host path) | This exam folder — e.g. `G:/Devops_Hopa/Docker/practice/exam-01-bookstore` |
+| Bind mount (container path) | `/usr/share/nginx/html` |
+| Detached | Yes (`-d`) |
+
+**Example `docker run` flags for Step B:**
+
+```text
+--name bookstore-live
+-p 9082:80
+-v <HOST_PATH_TO_exam-01-bookstore>:/usr/share/nginx/html
+```
+
+### How to verify
 
 ```bash
 curl http://localhost:9082
+docker ps --filter name=bookstore-live
 # edit index.html on host, then:
 curl http://localhost:9082
 ```
-
 
 ### Answer
 
 ```bash
 cp live-catalog.html index.html
+
 docker run -d \
   --name bookstore-live \
   -p 9082:80 \
   -v G:/Devops_Hopa/Docker/practice/exam-01-bookstore:/usr/share/nginx/html \
   nginx:1.25-alpine
 
-# Edit index.html on host, then:
+curl http://localhost:9082
+# edit index.html on host, then:
 curl http://localhost:9082
 ```
 
 ---
 
-## Task 5 — Networking
+## Task 5 — Networking (container DNS)
+
+### Goal
+
+Two containers on a **custom network** must reach each other **by container name** (Docker DNS).
 
 ### Scenario
 
-A catalog API container must reach a database container by hostname.
+The catalog API must connect to the database container using the hostname `bookstore-db` — not a hardcoded IP address.
 
-### Required
+### What you must do
 
-1. Create bridge network **`bookstore-net`** (`docker network create`).
-2. Run **`ubuntu:22.04`** container **`bookstore-db`** on `bookstore-net` (detached + interactive TTY: `-dit`).
-3. Run **`ubuntu:22.04`** container **`bookstore-api`** on `bookstore-net` (`-dit`).
-4. Inside **`bookstore-api`**, install `iputils-ping` and ping **`bookstore-db`** by name (not IP).
+1. Create a Docker network named **`bookstore-net`**.
+2. Start **`bookstore-db`** from image **`ubuntu:22.04`** on network `bookstore-net` (detached + TTY: `-dit`).
+3. Start **`bookstore-api`** from image **`ubuntu:22.04`** on network `bookstore-net` (detached + TTY: `-dit`).
+4. Inside `bookstore-api`, verify hostname **`bookstore-db`** resolves (use `getent hosts bookstore-db` or `ping bookstore-db` after installing ping).
 
-### Verify
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Network name | `bookstore-net` |
+| DB container name | `bookstore-db` |
+| DB image | `ubuntu:22.04` |
+| API container name | `bookstore-api` |
+| API image | `ubuntu:22.04` |
+
+### How to verify
 
 ```bash
 docker network inspect bookstore-net
-docker exec -it bookstore-api ping -c 3 bookstore-db
+docker exec bookstore-api getent hosts bookstore-db
 ```
-
 
 ### Answer
 
 ```bash
 docker network create bookstore-net
 
-docker run -dit --name bookstore-db --network bookstore-net ubuntu:22.04
-docker run -dit --name bookstore-api --network bookstore-net ubuntu:22.04
+docker run -dit \
+  --name bookstore-db \
+  --network bookstore-net \
+  ubuntu:22.04
 
-docker exec -it bookstore-api bash
-apt update && apt install -y iputils-ping
-ping -c 3 bookstore-db
+docker run -dit \
+  --name bookstore-api \
+  --network bookstore-net \
+  ubuntu:22.04
+
+docker exec bookstore-api getent hosts bookstore-db
 ```
 
 ---
 
 ## Task 6 — Environment Variables
 
+### Goal
+
+Pass configuration into a container at **runtime** using `-e` flags.
+
 ### Scenario
 
-The bookstore app reads configuration from environment variables at runtime.
+The bookstore app reads settings from environment variables instead of hardcoded values.
 
 ### Provided files
 
-| File | Purpose |
-|------|---------|
-| `env.example` | Reference for expected variable names |
+| File | Description |
+|------|-------------|
+| `env.example` | Reference — shows variable names (you set values via `-e`) |
 
-### Required
+### What you must do
 
-1. Run **`ubuntu:22.04`** container **`bookstore-env`** (`-dit`).
-2. Set environment variables (inline `-e`):
+1. Run container **`bookstore-env`** from **`ubuntu:22.04`** in detached mode (`-dit`).
+2. Set these three environment variables using `-e`:
    - `APP_ENV=staging`
    - `DB_HOST=bookstore-db`
    - `DB_PORT=5432`
-3. Verify all three variables inside the container.
+3. Verify all three variables exist inside the container.
 
-### Verify
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Image | `ubuntu:22.04` |
+| Container name | `bookstore-env` |
+| `APP_ENV` | `staging` |
+| `DB_HOST` | `bookstore-db` |
+| `DB_PORT` | `5432` |
+
+### How to verify
 
 ```bash
 docker exec bookstore-env printenv APP_ENV DB_HOST DB_PORT
 ```
-
 
 ### Answer
 
@@ -265,35 +382,42 @@ docker exec bookstore-env printenv APP_ENV DB_HOST DB_PORT
 
 ---
 
-## Task 7 — Docker Compose (FE + DB)
+## Task 7 — Docker Compose (multi-service stack)
+
+### Goal
+
+Define and run **multiple services** (web + database) in one YAML file.
 
 ### Scenario
 
-Deploy a web + database stack for the bookstore staging environment.
+Deploy the bookstore staging stack: nginx frontend and PostgreSQL database.
 
-### Required
+### What you must do
 
-Create **`docker-compose.staging.yml`** (*student-created*) with:
+1. Create a file named **`docker-compose.staging.yml`** in this folder.
+2. Define two services: **`web`** and **`db`**.
+3. Declare a named volume for PostgreSQL data and a custom network.
+4. Start everything with `docker compose -f docker-compose.staging.yml up -d`.
 
-| Service | Image | Details |
-|---------|-------|---------|
-| `web` | **`nginx:1.25-alpine`** | Host port **`9083:80`**, on network `bookstore-compose-net` |
-| `db` | **`postgres:15-alpine`** | Env: `POSTGRES_PASSWORD=bookstore123`, `POSTGRES_USER=bookstore`, `POSTGRES_DB=books` |
+### Settings (use exactly these values)
 
-Additional requirements:
+| Service | Image | Ports | Other |
+|---------|-------|-------|-------|
+| `web` | `nginx:1.25-alpine` | `9083:80` | on network `bookstore-compose-net` |
+| `db` | `postgres:15-alpine` | (none on host) | user `bookstore`, password `bookstore123`, db `books`, volume `bookstore-pg:/var/lib/postgresql/data` |
 
-- Named volume **`bookstore-pg`** mounted at **`/var/lib/postgresql/data`** on `db`
-- Custom network **`bookstore-compose-net`**
-- Run from **exam root**: `docker compose up -d`
+| Resource | Name |
+|----------|------|
+| Volume | `bookstore-pg` |
+| Network | `bookstore-compose-net` |
 
-### Verify
+### How to verify
 
 ```bash
-cd .
-docker compose ps
-docker compose logs db
+docker compose -f docker-compose.staging.yml up -d
+docker compose -f docker-compose.staging.yml ps
+curl http://localhost:9083
 ```
-
 
 ### Answer
 
@@ -327,40 +451,54 @@ networks:
 ```
 
 ```bash
-cd .
-docker compose up -d
-docker compose ps
+docker compose -f docker-compose.staging.yml up -d
+docker compose -f docker-compose.staging.yml ps
 ```
 
 ---
 
-## Task 8 — Troubleshooting
+## Task 8 — Troubleshooting (container exits immediately)
+
+### Goal
+
+Find **why** a container exits and fix it so it stays running.
 
 ### Scenario
 
-Container **`bookstore-broken`** starts and immediately exits.
+Container `bookstore-broken` was started incorrectly and exits right away.
 
-### Required
+### Provided files
 
-1. Reproduce the issue by running:
+| File | Description |
+|------|-------------|
+| `broken-command.sh` | Shows the broken `docker run` command for reference |
+
+### What you must do
+
+1. Run this command to reproduce the problem:
    ```bash
    docker run --name bookstore-broken ubuntu:22.04
    ```
-   (See also `broken-command.sh`.)
-2. Use `docker ps -a`, `docker logs bookstore-broken`, and `docker inspect bookstore-broken` to diagnose.
-3. Remove the broken container and start a replacement named **`bookstore-broken-fixed`** that **stays running**.
-4. Write the root cause in one sentence in a file **`root-cause.txt`** (*student-created*).
+2. Use `docker ps -a`, `docker logs bookstore-broken`, and `docker inspect bookstore-broken` to investigate.
+3. Remove the broken container.
+4. Start a **fixed** container named **`bookstore-broken-fixed`** that **stays running**.
+5. Write one sentence explaining the root cause in **`root-cause.txt`**.
 
-### Expected root cause
+### Settings (use exactly these values)
 
-Container exits because there is no long-running foreground process.
+| Setting | Value |
+|---------|-------|
+| Broken container name | `bookstore-broken` |
+| Fixed container name | `bookstore-broken-fixed` |
+| Image | `ubuntu:22.04` |
+| Fix hint | Container needs a long-running process — use `-dit` or `CMD sleep infinity` |
 
-### Verify
+### How to verify
 
 ```bash
 docker ps --filter name=bookstore-broken-fixed
+cat root-cause.txt
 ```
-
 
 ### Answer
 
@@ -368,44 +506,54 @@ docker ps --filter name=bookstore-broken-fixed
 docker run --name bookstore-broken ubuntu:22.04
 docker ps -a --filter name=bookstore-broken
 docker logs bookstore-broken
-docker inspect bookstore-broken
 
 docker rm -f bookstore-broken
 docker run -dit --name bookstore-broken-fixed ubuntu:22.04
 docker ps --filter name=bookstore-broken-fixed
 ```
 
-Root cause (`root-cause.txt`):
+`root-cause.txt`:
 
 ```text
-Container exited because ubuntu:22.04 has no long-running foreground process when run without -dit or an explicit CMD like sleep infinity.
+Container exited because ubuntu:22.04 has no foreground process when run without -dit.
 ```
 
 ---
 
-## Task 9 — Security (non-root)
+## Task 9 — Security (non-root user)
+
+### Goal
+
+Build an image that runs as a **non-root** Linux user.
 
 ### Scenario
 
-Security policy requires the bookstore app to run as a non-root user.
+Security policy forbids running application containers as root.
 
-### Required
+### What you must do
 
-1. Create **`Dockerfile.secure`** (*student-created*).
-2. Base image: **`ubuntu:22.04`**.
-3. Create Linux user **`bookuser`** (UID does not need to be specified).
-4. Switch to **`bookuser`** with `USER bookuser`.
-5. Default CMD: `["sleep", "infinity"]`.
-6. Build **`bookstore-secure:v1`**, run container **`bookstore-secure`** (`-d`).
-7. Verify UID is **not** `0` (root).
+1. Create **`Dockerfile.secure`** using base image **`ubuntu:22.04`**.
+2. Create Linux user **`bookuser`** inside the image.
+3. Add `USER bookuser` so the container runs as that user.
+4. Set `CMD ["sleep", "infinity"]` to keep the container alive.
+5. Build image **`bookstore-secure:v1`**, run container **`bookstore-secure`**, verify UID is not `0`.
 
-### Verify
+### Settings (use exactly these values)
+
+| Setting | Value |
+|---------|-------|
+| Dockerfile | `Dockerfile.secure` |
+| Base image | `ubuntu:22.04` |
+| Username | `bookuser` |
+| Image tag | `bookstore-secure:v1` |
+| Container name | `bookstore-secure` |
+
+### How to verify
 
 ```bash
 docker exec bookstore-secure id
-# Expected: uid=1000(bookuser) or similar, NOT uid=0(root)
+# uid must NOT be 0 (root)
 ```
-
 
 ### Answer
 
@@ -426,76 +574,75 @@ docker exec bookstore-secure id
 
 ---
 
-## Task 10 — Production Deployment Challenge (FE + Compose)
+## Task 10 — Production Deployment Challenge
+
+### Goal
+
+Combine everything: custom Dockerfile, Compose, volumes, network, healthcheck, non-root user.
 
 ### Scenario
 
-Deploy a production-ready bookstore frontend with full Docker best practices.
+Deploy a production-ready bookstore edge node with Docker Compose.
 
 ### Provided files
 
-| File | Purpose |
-|------|---------|
-| `prod-index.html` | Production FE page |
-| `prod-env.example` | Reference env vars |
+| File | Description |
+|------|-------------|
+| `prod-index.html` | Production frontend page — copy into image in your Dockerfile |
+| `prod-env.example` | Reference env vars for production |
 
-### Required — student-created files
+### What you must do
 
-Create at **exam root**:
+Create these files in **this folder**:
 
-| File | Requirements |
-|------|--------------|
-| **`Dockerfile`** | Base **`nginx:1.25-alpine`**, copy `fe/`, non-root user **`bookuser`**, `HEALTHCHECK` using `wget -qO- http://localhost` or `curl -f http://localhost` |
-| **`.dockerignore`** | Exclude `.env`, `docker-compose*.yml`, `.git` |
-| **`docker-compose.yml`** | Service `app`: build `.`, restart **`unless-stopped`**, port **`9084:8080`**, env `APP_ENV=production`, volume **`bookstore-prod-data:/data`**, network **`bookstore-prod-net`** |
+| File you create | Requirements |
+|-----------------|--------------|
+| `Dockerfile.prod` | Base `nginx:1.25-alpine`, copy `prod-index.html` to web root, user `bookuser`, include `HEALTHCHECK` |
+| `.dockerignore` | Exclude `.env`, `docker-compose*.yml`, `.git` |
+| `docker-compose.prod.yml` | Build from `Dockerfile.prod`, restart `unless-stopped`, env `APP_ENV=production`, volume + network (see settings) |
 
-Compose must declare:
+### Settings (use exactly these values)
 
-```yaml
-volumes:
-  bookstore-prod-data:
-networks:
-  bookstore-prod-net:
-```
+| Setting | Value |
+|---------|-------|
+| Image build file | `Dockerfile.prod` |
+| Compose file | `docker-compose.prod.yml` |
+| Port mapping | `9084:8080` |
+| Environment | `APP_ENV=production` |
+| Named volume | `bookstore-prod-data` mounted at `/data` |
+| Network | `bookstore-prod-net` |
+| Restart policy | `unless-stopped` |
+| Non-root user | `bookuser` |
 
-### Verify
+### How to verify
 
 ```bash
-cd .
-docker compose up -d --build
-docker ps
-docker volume ls | grep bookstore-prod
-docker network ls | grep bookstore-prod
-docker inspect $(docker compose ps -q)
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml ps
 curl http://localhost:9084
+docker volume ls | grep bookstore-prod
 ```
 
 ### Answer
 
-Create `Dockerfile.prod`:
+`Dockerfile.prod`:
 
 ```dockerfile
 FROM nginx:1.25-alpine
-COPY fe/ /usr/share/nginx/html/
+COPY prod-index.html /usr/share/nginx/html/index.html
 RUN adduser -D bookuser
 USER bookuser
 HEALTHCHECK CMD wget -qO- http://localhost || exit 1
 ```
 
-Create `.dockerignore`:
-
-```
-.env
-docker-compose*
-.git
-```
-
-Create `docker-compose.yml`:
+`docker-compose.prod.yml`:
 
 ```yaml
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
     restart: unless-stopped
     ports:
       - "9084:8080"
@@ -514,11 +661,9 @@ networks:
 ```
 
 ```bash
-cd .
-docker compose up -d --build
-docker ps
-docker volume ls | grep bookstore-prod
-docker network ls | grep bookstore-prod
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml ps
+curl http://localhost:9084
 ```
 
 ---
